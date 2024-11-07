@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
 import os
-import urllib.request
 from config import base_url, limit, max_pid, remote_server_ip, remote_server_port, secret_key
 
 
@@ -11,10 +10,11 @@ from config import base_url, limit, max_pid, remote_server_ip, remote_server_por
 output_dir = "downloaded_images"
 os.makedirs(output_dir, exist_ok=True)
 
+proxy_server_url = f"http://{remote_server_ip}:{remote_server_port}/download_image"
+
 
 def get_image_via_proxy(image_url, save_path):
     # Remote proxy server URL (replace with your server's IP)
-    proxy_server_url = f"http://{remote_server_ip}:{remote_server_port}/download_image"
     params = {'url': image_url, 'password': secret_key}
 
     try:
@@ -51,8 +51,10 @@ def fetch_images(limit, max_pid):
         url = f"{base_url}&limit={limit}&pid={pid}"
         print(f"Fetching page {pid} with limit {limit}")
 
+        params = {'url': url, 'password': secret_key}
+
         # Retrieve XML data from the URL
-        response = requests.get(url)
+        response = requests.get(proxy_server_url, params=params)
         if response.status_code != 200:
             print(f"Failed to fetch page {pid}: HTTP {response.status_code}")
             continue
