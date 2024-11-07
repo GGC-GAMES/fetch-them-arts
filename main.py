@@ -1,5 +1,3 @@
-import urllib
-
 import requests
 import xml.etree.ElementTree as ET
 import os
@@ -35,14 +33,31 @@ def get_image_via_proxy(image_url, save_path):
         print(f"Failed to download image via proxy: {e}")
         return None
 
-def download_image(url, save_path):
-    """Download an image from a URL and save it to a local file path."""
-    try:
-        urllib.request.urlretrieve(url, save_path)
-        print(f"Downloaded: {url}")
-    except Exception as e:
-        print(f"Failed to download {url}: {e}")
 
+def download_image(url, save_path):
+    try:
+        # Set up a user-agent to mimic a browser request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+        }
+
+        # Make a GET request to fetch the image
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()  # Check if the request was successful (status code 200)
+
+        # Save the image content to the specified file path
+        with open(save_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        print(f"Image downloaded successfully: {save_path}")
+        return save_path
+
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP Error: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"Request Error: {e}")
+    return None
 
 def fetch_images(limit, max_pid):
     """Fetch images from multiple pages using the provided limit and max_pid."""
@@ -53,7 +68,11 @@ def fetch_images(limit, max_pid):
 
         # Retrieve XML data from the URL
         try:
-            response = requests.get(url)
+            if use_proxy_server:
+                params = {'url': url, 'password': secret_key}
+                response = requests.get(proxy_server_url, params=params)
+            else:
+                response = requests.get(url)
 
         except requests.exceptions.InvalidURL:
             print(f"!! Failed to fetch page {pid}: Invalid URL. Try using the alternative download method !!")
@@ -90,7 +109,12 @@ def fetch_images_alt(limit, max_pid):
         params = {'url': url, 'password': secret_key}
 
         # Retrieve XML data from the URL
-        response = requests.get(proxy_server_url, params=params)
+        if use_proxy_server:
+            params = {'url': url, 'password': secret_key}
+            response = requests.get(proxy_server_url, params=params)
+        else:
+            response = requests.get(url)
+
         if response.status_code != 200:
             print(f"Failed to fetch page {pid}: HTTP {response.status_code}")
             continue
