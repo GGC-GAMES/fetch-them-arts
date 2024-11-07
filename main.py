@@ -2,7 +2,7 @@ import requests
 import xml.etree.ElementTree as ET
 import os
 import urllib.request
-from config import base_url, limit, max_pid
+from config import base_url, limit, max_pid, remote_server_ip, remote_server_port, secret_key
 
 
 # Configure variables for URL parameters
@@ -12,13 +12,36 @@ output_dir = "downloaded_images"
 os.makedirs(output_dir, exist_ok=True)
 
 
-def download_image(url, save_path):
-    """Download an image from a URL and save it to a local file path."""
+def get_image_via_proxy(image_url, save_path):
+    # Remote proxy server URL (replace with your server's IP)
+    proxy_server_url = f"http://{remote_server_ip}:{remote_server_port}/download_image"
+    params = {'url': image_url, 'password': secret_key}
+
     try:
-        urllib.request.urlretrieve(url, save_path)
-        print(f"Downloaded: {url}")
-    except Exception as e:
-        print(f"Failed to download {url}: {e}")
+        # Make a GET request to the proxy server with the image URL as a parameter
+        response = requests.get(proxy_server_url, params=params, stream=True)
+        response.raise_for_status()
+
+        # Save the image content to a local file
+        image_name = image_url.split('/')[-1]
+        with open(os.path.join(output_dir, image_name), 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        print(f"Downloaded image via proxy: {image_name}")
+        return image_name  # Return the saved image filename
+
+    except requests.RequestException as e:
+        print(f"Failed to download image via proxy: {e}")
+        return None
+
+# def download_image(url, save_path):
+#     """Download an image from a URL and save it to a local file path."""
+#     try:
+#         urllib.request.urlretrieve(url, save_path)
+#         print(f"Downloaded: {url}")
+#     except Exception as e:
+#         print(f"Failed to download {url}: {e}")
 
 
 def fetch_images(limit, max_pid):
@@ -47,7 +70,7 @@ def fetch_images(limit, max_pid):
                 save_path = os.path.join(output_dir, image_name)
 
                 # Download the image
-                download_image(file_url, save_path)
+                get_image_via_proxy(file_url, save_path)
 
 
 # Run the script to fetch and download images
